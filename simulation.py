@@ -9,7 +9,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 50
+        self.nt = 4
 
         self.x_target = 10.
         self.xdot_target = 0.
@@ -23,7 +23,7 @@ class Simulation:
         self.deltat = self.tf/self.nt
         self.mass = 40
         self.inertia = 10
-
+        self.r = 0.5
         self.preallocate_variables()
 
     '''
@@ -126,23 +126,33 @@ class Simulation:
     dc_dx
     '''
     def evaluate_constraint_jacobian(self, u):
+        dc_du = np.zeros((6, 2*self.nt))
+
         W = np.zeros((self.nt))
         W[-1] = 1
         pc_px = W
 
         px_pxdot = np.tril(np.ones((self.nt, self.nt)))*self.deltat
 
-        pacceleration_pinput = np.zeros((self.nt, 2*self.nt))
+        pxdotdot_pinput = np.zeros((self.nt, 2*self.nt))
+        pydotdot_pinput = np.zeros((self.nt, 2*self.nt))
+        pthetadotdot_pinput = np.zeros((self.nt, 2*self.nt))
         for i in range(self.nt):
-            pacceleration_pinput[i, 2*i] = 1
-            pacceleration_pinput[i, 2*i+1] = 1
-        pacceleration_pinput_translational = pacceleration_pinput/self.mass
-        pacceleration_pinput_rotational = pacceleration_pinput/self.inertia
-        
-        pxdotdot_ptheta = np.sin(self.theta[1:])
+            cos_theta = np.cos(self.theta[i])
+            pxdotdot_pinput[i, 2*i] = cos_theta
+            pxdotdot_pinput[i, 2*i+1] = cos_theta
+            sin_theta = np.sin(self.theta[i])
+            pydotdot_pinput[i, 2*i] = sin_theta
+            pydotdot_pinput[i, 2*i+1] = sin_theta
 
-        dc_du = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta)
-        # .dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        pacceleration_pinput_translational = pxdotdot_pinput/self.mass
+        pacceleration_pinput_rotational = pthetadotdot_pinput*self.r/self.inertia
+        
+        pxdotdot_ptheta = np.diag(np.sin(self.theta[1:]))
+
+        dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        
+        dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         return dc_du
 
 
