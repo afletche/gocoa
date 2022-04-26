@@ -72,7 +72,7 @@ class Simulation:
 
         self.theta[tindex + 1] = self.deltat*self.thetadot[tindex]+self.theta[tindex]
         self.thetadot[tindex + 1] = self.deltat*self.thetadotdot[tindex]+self.thetadot[tindex]
-        self.thetadotdot[tindex + 1] = (-u[2*tindex]+u[2*tindex+1])/self.inertia
+        self.thetadotdot[tindex + 1] = self.r*(-u[2*tindex]+u[2*tindex+1])/self.inertia
         #print("setp", tindex, "theeta", self.theta[tindex + 1])
         #print("setp", tindex, "theetadot", self.thetadot[tindex + 1])
         #print("setp", tindex, "theetadotdot", self.thetadotdot[tindex + 1])
@@ -392,7 +392,8 @@ if __name__ == "__main__":
     sim1.theta[0] = np.pi/2
     sim1.u[0] = 3000
     sim1.u[1] = 3000
-    sim1.u[2] = 3000
+    sim1.u[2] = 1500
+    sim1.u[3] = 1500
     sim1.u[8] = 1000
     #print(sim1.y)
     sim1.simulate_dynamics(sim1.u)
@@ -401,6 +402,6 @@ if __name__ == "__main__":
     print(sim1.y)
 
     sim1.plot_rigid_body_displacement()
-    #sim1.savefigures(-5,100,-5,100)
+    sim1.savefigures(-5,25,-5,25)
     sim1.generate_video("testplot1.avi",10)
     print("hello end of file")
