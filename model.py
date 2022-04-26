@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 #hello there
 
@@ -102,3 +103,61 @@ class Simulation:
     '''
     def evaluate_constraint_hessian(self, u):
         pass
+
+
+
+
+
+    def plot_rigid_body_displacement(self, x_axis='x', y_axis='y', show=True):
+        t_data = self.t_eval
+        x_data = self.rigid_body_displacement[:,0]
+        y_data = self.rigid_body_displacement[:,1]
+        rot_z_data = self.rigid_body_displacement[:,2]
+        plot_points = np.zeros((self.nt+1, 2))  # 2D plot
+
+        if x_axis == 't':
+            x_coords = t_data
+        elif x_axis == 'x':
+            x_coords = x_data
+        elif x_axis == 'y':
+            x_coords = y_data
+        elif x_axis == 'rot_z':
+            x_coords = rot_z_data
+
+        if y_axis == 't':
+            y_coords = t_data
+        elif y_axis == 'x':
+            y_coords = x_data
+        elif y_axis == 'y':
+            y_coords = y_data
+        elif y_axis == 'rot_z':
+            y_coords = rot_z_data
+
+        # plt.plot(plot_points[:,0], plot_points[:,1], '-bo')
+        plt.plot(x_coords, y_coords, '-bo')
+        plt.title(f'Rigid Body Dynamics: {y_axis} vs. {x_axis}')
+        plt.xlabel(x_axis)
+        plt.ylabel(y_axis)
+        if show:
+            plt.show()
+
+
+    '''
+    Generates a video.
+    '''
+    def generate_video(self, video_file_name, video_fps):
+        print('Creating Video...')
+        image_folder = 'plots'
+        images = [f'video_plot_at_t_{t:9.9f}.png' for t in self.t_eval]
+        frame = cv2.imread(os.path.join(image_folder, images[0]))
+        height, width, layers = frame.shape
+
+        video = cv2.VideoWriter(video_file_name, cv2.VideoWriter_fourcc(*'XVID'), video_fps, (width,height))
+
+        for image in images:
+            image_frame = cv2.imread(os.path.join(image_folder, image))
+            frame_resized = cv2.resize(image_frame, (width, height)) 
+            video.write(frame_resized)
+
+        cv2.destroyAllWindows()
+        video.release()
