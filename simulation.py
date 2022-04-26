@@ -19,7 +19,7 @@ class Simulation:
         self.thetadot_target = 0.
 
         self.g = 9.81
-        self.tf = 30
+        self.tf = 5
         self.deltat = self.tf/self.nt
         self.mass = 40
         self.inertia = 10
@@ -187,14 +187,35 @@ class Simulation:
 
 
 
+    def savefigures(self, xmin,xmax,ymin,ymax,x_axis='x', y_axis='y', show=True):
+        x_data = self.x
+        y_data = self.y
+        x_coords = x_data
+        y_coords = y_data
+        for intex in range(self.nt+1):
+            plt.plot(x_coords[intex], y_coords[intex], '-bo')
+            plt.title(f'Rigid Body Dynamics: {y_axis} vs. {x_axis}')
+            plt.xlabel(x_axis)
+            plt.ylabel(y_axis)
+            # plot right arm red. left arm green
+            plt.plot(x_coords[intex] + 0.5 * np.cos(self.theta[intex] - np.pi / 2), y_coords[intex] + 0.5 * np.sin(self.theta[intex] - np.pi / 2),
+                     'ro')
+            plt.plot(x_coords[intex] + 0.5 * np.cos(self.theta[intex] + np.pi / 2), y_coords[intex] + 0.5 * np.sin(self.theta[intex] + np.pi / 2),
+                     'go')
 
+            # plot above blue
+            plt.plot(x_coords[intex] + 0.5 * np.cos(self.theta[intex]), y_coords[intex] + 0.5 * np.sin(self.theta[intex]), 'b*')
+            plt.xlim([xmin,xmax])
+            plt.ylim([ymin,ymax])
+
+            plt.savefig(f'plots/video_plot_at_t_{intex:9.9f}.png', bbox_inches='tight')
+            plt.close()
 
     def plot_rigid_body_displacement(self, x_axis='x', y_axis='y', show=True):
         t_data = np.linspace(0,self.tf,self.nt)
         #y_data = self.rigid_body_displacement[:,1]
         x_data = self.x
         y_data = self.y
-
         plot_points = np.zeros((self.nt+1, 2))  # 2D plot
 
         if x_axis == 't':
@@ -219,6 +240,14 @@ class Simulation:
 
         # plt.plot(plot_points[:,0], plot_points[:,1], '-bo')
         plt.plot(x_coords, y_coords, '-bo')
+
+        #plot right arm red. left arm green
+        plt.plot(x_coords+0.5*np.cos(self.theta-np.pi/2), y_coords+0.5*np.sin(self.theta-np.pi/2), 'ro')
+        plt.plot(x_coords+0.5*np.cos(self.theta+np.pi/2), y_coords+0.5*np.sin(self.theta+np.pi/2), 'go')
+
+        #plot above blue
+        plt.plot(x_coords+0.5*np.cos(self.theta), y_coords+0.5*np.sin(self.theta), 'b*')
+
         plt.title(f'Rigid Body Dynamics: {y_axis} vs. {x_axis}')
         plt.xlabel(x_axis)
         plt.ylabel(y_axis)
@@ -232,7 +261,8 @@ class Simulation:
     def generate_video(self, video_file_name, video_fps):
         print('Creating Video...')
         image_folder = 'plots'
-        images = [f'video_plot_at_t_{t:9.9f}.png' for t in self.t_eval]
+        images = [f'video_plot_at_t_{t:9.9f}.png' for t in range(self.nt+1)]
+        print("image names",images[0])
         frame = cv2.imread(os.path.join(image_folder, images[0]))
         height, width, layers = frame.shape
 
@@ -371,4 +401,6 @@ if __name__ == "__main__":
     print(sim1.y)
 
     sim1.plot_rigid_body_displacement()
+    #sim1.savefigures(-5,100,-5,100)
+    sim1.generate_video("testplot1.avi",10)
     print("hello end of file")
