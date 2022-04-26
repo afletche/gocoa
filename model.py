@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.misc import derivative
 
 #hello there
 
@@ -112,7 +113,24 @@ class Simulation:
     dc_dx
     '''
     def evaluate_constraint_jacobian(self, u):
-        pass
+        W = np.zeros((self.nt+1))
+        W[-1] = 1
+        pc_px = W
+
+        px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1)*self.deltat
+
+        pacceleration_pinput = np.zeros((self.nt, 2*self.nt))
+        for i in range(self.nt):
+            pacceleration_pinput[i, 2*i] = 1
+            pacceleration_pinput[i, 2*i+1] = 1
+        pacceleration_pinput_translational = pacceleration_pinput/self.mass
+        pacceleration_pinput_rotational = pacceleration_pinput/self.inertia
+        
+        pxdotdot_ptheta = np.sin(self.theta)
+
+        dc_du = pc_px + px_pxdot.dot(px_pxdot).dot(pacceleration_pinput_translational + np.dot(pxdotdot_ptheta).dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        print(dc_du)
+
 
 
     '''
