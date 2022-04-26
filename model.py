@@ -7,7 +7,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 3
+        self.nt = 300
 
         self.x_target = 10.
         self.xdot_target = 0.
@@ -34,6 +34,7 @@ class Simulation:
         self.xdotdot = np.zeros((self.nt+1))
         self.y = np.zeros((self.nt+1))
         self.ydot = np.zeros((self.nt+1))
+        self.ydotdot = np.zeros((self.nt+1))
         self.theta = np.zeros((self.nt+1))
         self.thetadot = np.zeros((self.nt+1))
         self.thetadotdot = np.zeros((self.nt+1))
@@ -59,9 +60,19 @@ class Simulation:
         self.x[tindex + 1] = self.deltat*self.xdot[tindex]+self.x[tindex]
         self.xdot[tindex + 1] = self.deltat*self.xdotdot[tindex]+self.xdot[tindex]
         self.xdotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.cos(self.theta[tindex])/self.mass
+        self.y[tindex + 1] = self.deltat*self.ydot[tindex]+self.y[tindex]
+        self.ydot[tindex + 1] = self.deltat*self.ydotdot[tindex]+self.ydot[tindex]-self.deltat*self.g
+        self.ydotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.sin(self.theta[tindex])/self.mass
+        #print("setp",tindex,"y",self.y[tindex + 1])
+        #print("setp",tindex,"ydot",self.ydot[tindex + 1])
+        #print("setp",tindex,"ydotdot",self.ydotdot[tindex + 1])
+
         self.theta[tindex + 1] = self.deltat*self.thetadot[tindex]+self.theta[tindex]
         self.thetadot[tindex + 1] = self.deltat*self.thetadotdot[tindex]+self.thetadot[tindex]
         self.thetadotdot[tindex + 1] = (-u[2*tindex]+u[2*tindex+1])/self.inertia
+        print("setp", tindex, "theeta", self.theta[tindex + 1])
+        print("setp", tindex, "theetadot", self.thetadot[tindex + 1])
+        print("setp", tindex, "theetadotdot", self.thetadotdot[tindex + 1])
 
     def simulate_dynamics(self, u):
         for tind in range(self.nt):
@@ -158,10 +169,11 @@ class Simulation:
 
 
     def plot_rigid_body_displacement(self, x_axis='x', y_axis='y', show=True):
-        t_data = self.t_eval
-        x_data = self.rigid_body_displacement[:,0]
-        y_data = self.rigid_body_displacement[:,1]
-        rot_z_data = self.rigid_body_displacement[:,2]
+        t_data = np.linspace(0,self.tf,self.nt)
+        #y_data = self.rigid_body_displacement[:,1]
+        x_data = self.x
+        y_data = self.y
+
         plot_points = np.zeros((self.nt+1, 2))  # 2D plot
 
         if x_axis == 't':
@@ -171,6 +183,7 @@ class Simulation:
         elif x_axis == 'y':
             x_coords = y_data
         elif x_axis == 'rot_z':
+            rot_z_data = self.rigid_body_displacement[:, 2]
             x_coords = rot_z_data
 
         if y_axis == 't':
@@ -180,6 +193,7 @@ class Simulation:
         elif y_axis == 'y':
             y_coords = y_data
         elif y_axis == 'rot_z':
+            rot_z_data = self.rigid_body_displacement[:, 2]
             y_coords = rot_z_data
 
         # plt.plot(plot_points[:,0], plot_points[:,1], '-bo')
@@ -210,3 +224,20 @@ class Simulation:
 
         cv2.destroyAllWindows()
         video.release()
+
+
+if __name__ == "__main__":
+    sim1 = Simulation()
+    sim1.theta[0] = np.pi/2
+    sim1.u[0] = 3000
+    sim1.u[1] = 3000
+    sim1.u[2] = 3000
+    sim1.u[6] = 1000
+    #print(sim1.y)
+    sim1.simulate_dynamics(sim1.u)
+
+    print(sim1.deltat)
+    print(sim1.y)
+
+    sim1.plot_rigid_body_displacement()
+    print("hello end of file")
