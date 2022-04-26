@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
+import os
 from scipy.misc import derivative
 
 #hello there
