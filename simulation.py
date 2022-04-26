@@ -57,6 +57,7 @@ class Simulation:
         self.u = x[:(2*self.nt)]
         self.lagrange_multiliers = x[(2*self.nt):]
         # TODO
+    
 
     def simulate_one_dynamics(self, u, tindex):
         self.x[tindex + 1] = self.deltat*self.xdot[tindex]+self.x[tindex]
@@ -145,14 +146,21 @@ class Simulation:
             pydotdot_pinput[i, 2*i] = sin_theta
             pydotdot_pinput[i, 2*i+1] = sin_theta
 
+            pthetadotdot_pinput[i, 2*i] = 1.
+            pthetadotdot_pinput[i, 2*i+1] = 1.
+
         pacceleration_pinput_translational = pxdotdot_pinput/self.mass
         pacceleration_pinput_rotational = pthetadotdot_pinput*self.r/self.inertia
         
-        pxdotdot_ptheta = np.diag(np.sin(self.theta[1:]))
+        pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:]))
+        pydotdot_ptheta = np.diag(np.cos(self.theta[1:]))
 
         dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         
-        dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        
+        dc_du[5,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        
         return dc_du
 
 
