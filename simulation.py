@@ -126,11 +126,11 @@ class Simulation:
     dc_dx
     '''
     def evaluate_constraint_jacobian(self, u):
-        W = np.zeros((self.nt+1))
+        W = np.zeros((self.nt))
         W[-1] = 1
         pc_px = W
 
-        px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1)*self.deltat
+        px_pxdot = np.tril(np.ones((self.nt, self.nt)))*self.deltat
 
         pacceleration_pinput = np.zeros((self.nt, 2*self.nt))
         for i in range(self.nt):
@@ -139,10 +139,11 @@ class Simulation:
         pacceleration_pinput_translational = pacceleration_pinput/self.mass
         pacceleration_pinput_rotational = pacceleration_pinput/self.inertia
         
-        pxdotdot_ptheta = np.sin(self.theta)
+        pxdotdot_ptheta = np.sin(self.theta[1:])
 
-        dc_du = pc_px + px_pxdot.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        print(dc_du)
+        dc_du = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta)
+        # .dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        return dc_du
 
 
 
@@ -226,6 +227,116 @@ class Simulation:
 
         cv2.destroyAllWindows()
         video.release()
+
+
+    def plot(self, stress_type=None, time_step=None, dof=None, show_dislpacements=False, show_nodes=False, show_connections=False, show_undeformed=False,
+                save_plots=False, video_file_name=None, video_fps=1, show=True):
+        nodes = self.mesh.nodes
+        U_reshaped = self.U.reshape((-1, self.num_dimensions))
+        max_x_dist = np.linalg.norm(max(nodes[:,0]) - min(nodes[:,0]))
+        max_y_dist = np.linalg.norm(max(nodes[:,1]) - min(nodes[:,1]))
+        scale_dist = np.linalg.norm(np.array([max_x_dist, max_y_dist]))
+        if np.linalg.norm(self.U) != 0:
+            visualization_scaling_factor = scale_dist*0.1/max(np.linalg.norm(U_reshaped, axis=1))
+        else:
+            visualization_scaling_factor = 0
+        self.visualization_scaling_factor = visualization_scaling_factor
+
+        self.element_midpoints = np.zeros((self.nt+1, self.num_elements, self.num_dimensions))
+        self.element_midpoints_plot = np.zeros((self.nt+1, self.num_elements, self.num_dimensions))
+        for i, element in enumerate(self.mesh.elements):
+            element_dofs = self.nodes_to_dof_indices(element.node_map)
+            element_U = self.U[np.ix_(element_dofs)]
+
+            self.element_midpoints[:,i,:] = element.calc_midpoint(element_U)
+            self.element_midpoints_plot[:,i,:] = element.calc_midpoint(element_U*self.visualization_scaling_factor)
+
+        if time_step is None:
+            time_step = range(len(self.t_eval))
+        elif type(time_step) == int:
+            time_step = [time_step]
+        if dof is not None and type(dof) == int:
+            dof = [dof]
+
+        if stress_type is not None:
+            self.evaluate_stress_points(visualization_scaling_factor)
+
+            if stress_type == 'x' or stress_type == 'xx':
+                stresses = self.stresses_dict['xx']
+                stress_eval_points = self.stress_eval_points_dict['xx']
+            elif stress_type == 'y' or stress_type == 'yy':
+                stresses = self.stresses_dict['yy']
+                stress_eval_points = self.stress_eval_points_dict['yy']
+            elif stress_type == 'tao' or stress_type == 'xy':
+                stresses = self.stresses_dict['xy']
+                stress_eval_points = self.stress_eval_points_dict['xy']
+            elif stress_type == 'von_mises' or stress_type == 'vm':
+                stresses = self.von_mises_stresses
+                stress_eval_points = self.stress_eval_points_dict['xx']
+            elif stress_type == 'averaged_von_mises' or stress_type == 'avm':
+                stresses = self.averaged_von_mises_stresses
+                stress_eval_points = self.element_midpoints_plot
+            elif stress_type == 'axial' or stress_type == 'tension' or stress_type == 'compression' or stress_type == '11':
+                stresses = self.stresses_dict['axial']
+                stress_eval_points = self.stress_eval_points_dict['axial']
+
+        if dof is None:
+            print('Plotting...')
+            for t_step in time_step:
+                t = self.t_eval[t_step]
+                plt.figure()
+                if show_dislpacements:
+                    self.plot_displacements(show_nodes=show_nodes, show_connections=show_connections, show_undeformed=show_undeformed,
+                                             time_step=t_step, visualization_scaling_factor=visualization_scaling_factor, show=False)
+                if stress_type is not None:
+                    self.plot_stresses(stresses=stresses, stress_eval_points=stress_eval_points, time_step=t_step, show=False)
+
+                if stress_type is None:
+                    # plt.title(f'Structure at t ={t: 9.5f}')
+                    plt.title(f'Structure at t ={t: 1.2e}')
+                else:
+                    plt.title(f'Stress (sigma_{stress_type}) Colorplot of Structure at t ={t:1.2e}')
+                plt.xlabel(f'x (m*{visualization_scaling_factor:3.0e})')
+                plt.ylabel(f'y (m*{visualization_scaling_factor:3.0e})')
+                plt.gca().set_aspect('equal')
+                if save_plots or video_file_name is not None:
+                    plt.savefig(f'plots/video_plot_at_t_{t:9.9f}.png', bbox_inches='tight')
+                if show:
+                    plt.show()
+                plt.close()
+
+            if video_file_name is not None:
+                self.generate_video(video_file_name=video_file_name, video_fps=video_fps)
+
+        elif dof is not None:
+            if stress_type is not None:
+                visualization_scaling_factor = max(np.linalg.norm(stresses, axis=1))*0.01/max(np.linalg.norm(U_reshaped, axis=1))
+            else:
+                visualization_scaling_factor = 1
+
+            plt.figure()
+            for index in dof:
+                if show_dislpacements:
+                    plt.plot(self.t_eval, self.U[index, :]*visualization_scaling_factor*50, '-', label=f'Displacement of node {index}')
+                if stress_type is not None:
+                    plot_stresses = stresses[:, index]   # (time_step, dof)
+                    plt.plot(self.t_eval, plot_stresses, '-o', label=f'Stress of node {index}')
+            
+            if show_dislpacements and stress_type is not None:
+                plt.title(f'Stress (sigma_{stress_type}) and Scaled Displacement vs. Time')
+                plt.ylabel(f'Stress (Pa) and Displacement (m /{visualization_scaling_factor:3.0e})')
+            elif show_dislpacements:
+                plt.title(f'Y-Displacement of Node(s)')
+                plt.ylabel('Displacement (m)')
+            elif stress_type is not None:
+                plt.title(f'Stress (sigma_{stress_type}) vs. Time')
+                plt.ylabel('Stress (Pa)')
+
+            plt.xlabel('Time (s)')
+            plt.legend()
+
+            if show:
+                plt.show()
 
 
 if __name__ == "__main__":
