@@ -9,7 +9,7 @@ class Simulation:
     
     def preallocate_variables(self):
         self.U = np.zeros((2*self.nt,))
-
+        
 
 
     '''
