@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class Simulation:
 
     def __init__(self):
-        self.nt = 3
+        self.nt = 30
 
         self.x_target = 10.
         self.xdot_target = 0.
@@ -175,3 +175,11 @@ class Simulation:
 
         cv2.destroyAllWindows()
         video.release()
+
+
+if __name__ == "__main__":
+    sim1 = Simulation()
+    sim1.u[0] = 1
+
+    print(sim1.u)
+    print("hello end of file")
