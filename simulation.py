@@ -9,7 +9,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 50
+        self.nt = 100
 
         self.x_target = 10.
         self.xdot_target = 0.
@@ -19,7 +19,7 @@ class Simulation:
         self.thetadot_target = 0.
 
         self.g = 9.81
-        self.tf = 5
+        self.tf = 30
         self.deltat = self.tf/self.nt
         self.mass = 40
         self.inertia = 10
@@ -30,6 +30,9 @@ class Simulation:
     Preallocates memory for vectors across time.
     '''
     def preallocate_variables(self):
+        self.num_control_inputs = 2*self.nt
+        self.num_constraints = 6    # 2D, each dof has a final condition constraint.
+
         self.u = np.zeros((2*self.nt,))
         self.x = np.zeros((self.nt+1))
         self.xdot = np.zeros((self.nt+1))
@@ -41,8 +44,14 @@ class Simulation:
         self.thetadot = np.zeros((self.nt+1))
         self.thetadotdot = np.zeros((self.nt+1))
 
-        self.c = np.zeros((6,)) # 6 constrained final states
 
+    '''
+    Setup method that will precompute anything that can be precomputed
+
+    Examples could be automatic moment of inertia calculation, etc.
+    '''
+    def setup(self):
+        self.preallocate_variables()
 
     '''
     Evaluate the model
@@ -51,14 +60,31 @@ class Simulation:
         - x : np.ndarray : vector of design variables (both control inputs and lagrange multipliers)
 
     Outputs:
-        - model_outputs : List : [f, c, df_dx, dc_dx, ...etc. I will fill this out later]
+        - model_outputs : List : [f, c, df_dx, dc_dx, d2f_dx2, dl_dx, kkt]
     '''
-    def evaluate(self, x):
+    def evaluate(self, x, rho=0.):
         self.u = x[:(2*self.nt)]
-        self.lagrange_multiliers = x[(2*self.nt):]
-        # TODO
+        self.lagrange_multipliers = x[(2*self.nt):]
+
+        self.simulate_dynamics(self.u)
+
+        f = self.evaluate_objective(self.u)
+        c = self.evaluate_constraints()
+        # df_dx = self.evaluate_objective_gradient(self.u)
+        df_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
+        dc_dx = self.evaluate_constraint_jacobian()
+        d2f_dx2 = self.evaluate_objective_hessian()
+        dl_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
+        kkt = self.evaluate_hessian(self.lagrange_multipliers)
+
+        return [f, c, df_dx, dc_dx, d2f_dx2, dl_dx, kkt]
+
+
     
 
+    '''
+    Apply for explicit Euler update for one time step.
+    '''
     def simulate_one_dynamics(self, u, tindex):
         self.x[tindex + 1] = self.deltat*self.xdot[tindex]+self.x[tindex]
         self.xdot[tindex + 1] = self.deltat*self.xdotdot[tindex]+self.xdot[tindex]
@@ -77,6 +103,10 @@ class Simulation:
         #print("setp", tindex, "theetadot", self.thetadot[tindex + 1])
         #print("setp", tindex, "theetadotdot", self.thetadotdot[tindex + 1])
 
+
+    '''
+    Integrate the dynamics.
+    '''
     def simulate_dynamics(self, u):
         for tind in range(self.nt):
             self.simulate_one_dynamics(u,tind)
@@ -93,18 +123,19 @@ class Simulation:
     '''
     Evaluates constraint functions to get the constraint vector.
     '''
-    def evaluate_constraints(self, u):
+    def evaluate_constraints(self):
         W = np.zeros((self.nt+1))
         W[-1] = 1
 
-        self.c[0] = W.dot(self.x) - self.x_target
-        self.c[1] = W.dot(self.xdot) - self.xdot_target
-        self.c[2] = W.dot(self.y) - self.y_target
-        self.c[3] = W.dot(self.ydot) - self.ydot_target
-        self.c[4] = W.dot(self.theta) - self.theta_target
-        self.c[5] = W.dot(self.thetadot) - self.thetadot_target
+        c = np.zeros((self.num_constraints,))
+        c[0] = W.dot(self.x) - self.x_target
+        c[1] = W.dot(self.xdot) - self.xdot_target
+        c[2] = W.dot(self.y) - self.y_target
+        c[3] = W.dot(self.ydot) - self.ydot_target
+        c[4] = W.dot(self.theta) - self.theta_target
+        c[5] = W.dot(self.thetadot) - self.thetadot_target
 
-        return self.c
+        return c
 
 
     '''
@@ -112,9 +143,13 @@ class Simulation:
     '''
     def evaluate_gradient(self, u, lagrangian_multipliers):
         objective_gradient = self.evaluate_objective_gradient(u)
-        constraint_jacobian = self.evaluate_constraint_jacobian(u)
-        constraints = self.evaluate_constraints(u)
+        constraint_jacobian = self.evaluate_constraint_jacobian()
+        constraints = self.evaluate_constraints()
 
+        gradient = np.zeros((self.num_control_inputs + self.num_constraints))
+        gradient[:self.num_control_inputs] = objective_gradient + lagrangian_multipliers.dot(constraint_jacobian)
+        gradient[self.num_control_inputs:] = constraints
+        return gradient
 
     '''
     df_dx
@@ -126,7 +161,7 @@ class Simulation:
     '''
     dc_dx
     '''
-    def evaluate_constraint_jacobian(self, u):
+    def evaluate_constraint_jacobian(self):
         dc_du = np.zeros((6, 2*self.nt))
 
         W = np.zeros((self.nt))
@@ -146,7 +181,7 @@ class Simulation:
             pydotdot_pinput[i, 2*i] = sin_theta
             pydotdot_pinput[i, 2*i+1] = sin_theta
 
-            pthetadotdot_pinput[i, 2*i] = 1.
+            pthetadotdot_pinput[i, 2*i] = -1.
             pthetadotdot_pinput[i, 2*i+1] = 1.
 
         pacceleration_pinput_translational = pxdotdot_pinput/self.mass
@@ -156,27 +191,29 @@ class Simulation:
         pydotdot_ptheta = np.diag(np.cos(self.theta[1:]))
 
         dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        
+        dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        
-        dc_du[5,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
         
         return dc_du
-
 
 
     '''
     KKT Matrix
     '''
-    def evaluate_hessian(self, u):
-        pass
+    def evaluate_hessian(self, lagrangian_multipliers):
+        return None
 
 
     '''
     d^f/dx^2
     '''
-    def evaluate_objective_hessian(self, u):
-        pass
+    def evaluate_objective_hessian(self):
+        d2f_dx2 = 2*self.deltat*np.eye(self.num_control_inputs)
+        return d2f_dx2
+
 
 
     '''
