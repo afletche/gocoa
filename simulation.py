@@ -72,9 +72,9 @@ class Simulation:
         self.theta[tindex + 1] = self.deltat*self.thetadot[tindex]+self.theta[tindex]
         self.thetadot[tindex + 1] = self.deltat*self.thetadotdot[tindex]+self.thetadot[tindex]
         self.thetadotdot[tindex + 1] = (-u[2*tindex]+u[2*tindex+1])/self.inertia
-        print("setp", tindex, "theeta", self.theta[tindex + 1])
-        print("setp", tindex, "theetadot", self.thetadot[tindex + 1])
-        print("setp", tindex, "theetadotdot", self.thetadotdot[tindex + 1])
+        #print("setp", tindex, "theeta", self.theta[tindex + 1])
+        #print("setp", tindex, "theetadot", self.thetadot[tindex + 1])
+        #print("setp", tindex, "theetadotdot", self.thetadotdot[tindex + 1])
 
     def simulate_dynamics(self, u):
         for tind in range(self.nt):
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     sim1.u[0] = 3000
     sim1.u[1] = 3000
     sim1.u[2] = 3000
-    sim1.u[6] = 1000
+    sim1.u[8] = 1000
     #print(sim1.y)
     sim1.simulate_dynamics(sim1.u)
 
