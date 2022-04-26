@@ -9,7 +9,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 4
+        self.nt = 50
 
         self.x_target = 10.
         self.xdot_target = 0.
