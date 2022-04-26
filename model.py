@@ -21,7 +21,11 @@ class Simulation:
         self.mass = 40
         self.inertia = 10
 
-    
+        self.preallocate_variables()
+
+    '''
+    Preallocates memory for vectors across time.
+    '''
     def preallocate_variables(self):
         self.u = np.zeros((2*self.nt,))
         self.x = np.zeros((self.nt+1))
@@ -64,13 +68,19 @@ class Simulation:
 
 
 
-
+    '''
+    Evaluates the lagrangian objective (f + lambda*c) which is equivalent to the original objective (f) because c=0
+    '''
     def evaluate_objective(self, u):
         return u.dot(u)
 
 
+    '''
+    Evaluates constraint functions to get the constraint vector.
+    '''
     def evaluate_constraints(self, u):
         W = np.zeros((self.nt+1))
+        W[-1] = 1
 
         self.c[0] = W.dot(self.x) - self.x_target
         self.c[1] = W.dot(self.xdot) - self.xdot_target
@@ -82,18 +92,25 @@ class Simulation:
         return self.c
 
 
-
-    def evaluate_gradient(self, u):
+    '''
+    Lagrangian gradient. [df_dx + lambda*dc_dx, c].T
+    '''
+    def evaluate_gradient(self, u, lagrangian_multipliers):
         objective_gradient = self.evaluate_objective_gradient(u)
         constraint_jacobian = self.evaluate_constraint_jacobian(u)
         constraints = self.evaluate_constraints(u)
 
 
-
+    '''
+    df_dx
+    '''
     def evaluate_objective_gradient(self, u):
         return u
 
 
+    '''
+    dc_dx
+    '''
     def evaluate_constraint_jacobian(self, u):
         pass
 
