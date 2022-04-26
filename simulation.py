@@ -141,7 +141,7 @@ class Simulation:
         
         pxdotdot_ptheta = np.sin(self.theta)
 
-        dc_du = pc_px + px_pxdot.dot(px_pxdot).dot(pacceleration_pinput_translational + np.dot(pxdotdot_ptheta).dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du = pc_px + px_pxdot.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         print(dc_du)
 
 
