@@ -9,7 +9,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 20
+        self.nt = 50
 
         self.x_target = 10.
         self.xdot_target = 0.
@@ -19,7 +19,7 @@ class Simulation:
         self.thetadot_target = 0.
 
         self.g = 9.81
-        self.tf = 30
+        self.tf = 5
         self.deltat = self.tf/self.nt
         self.mass = 40
         self.inertia = 10
@@ -246,6 +246,8 @@ class Simulation:
 
             # plot above blue
             plt.plot(x_coords[intex] + 0.5 * np.cos(self.theta[intex]), y_coords[intex] + 0.5 * np.sin(self.theta[intex]), 'b*')
+            # plot target
+            plt.plot(self.x_target, self.y_target, color=[1.0, 0.7, 0.0, 1.0], marker='*')
             plt.xlim([xmin,xmax])
             plt.ylim([ymin,ymax])
 
@@ -290,7 +292,7 @@ class Simulation:
         plt.plot(x_coords+0.5*np.cos(self.theta), y_coords+0.5*np.sin(self.theta), 'b*')
 
         #plot target
-        plt.plot(x_coords+0.5*np.cos(self.theta), y_coords+0.5*np.sin(self.theta), 'o*')
+        plt.plot(self.x_target, self.y_target, color = [1.0,0.7,0.0,1.0],marker ='*')
 
         plt.title(f'Rigid Body Dynamics: {y_axis} vs. {x_axis}')
         plt.xlabel(x_axis)
@@ -446,6 +448,6 @@ if __name__ == "__main__":
     print(sim1.y)
 
     sim1.plot_rigid_body_displacement()
-    sim1.savefigures(-5,25,-5,25)
-    sim1.generate_video("testplot1.avi",10)
+    #sim1.savefigures(-5,25,-5,25)
+    #sim1.generate_video("testplot1.avi",10)
     print("hello end of file")

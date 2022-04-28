@@ -30,7 +30,9 @@ control_optimization.setup()
 x0 = np.ones(sim1.num_control_inputs + sim1.num_constraints,)*200.
 steepest_descent_optimizer.set_initial_guess(x0)
 
-control_optimization.run(line_search='GFD', grad_norm_abs_tol=1.e-2, delta_x_abs_tol=1e-5, updating_penalty=True, max_iter=100000)
+control_optimization.run(line_search='GFD', grad_norm_abs_tol=1.e-2, delta_x_abs_tol=1e-5, updating_penalty=True, max_iter=50)
 solution = control_optimization.report(history=True)
 #control_optimization.plot()
 sim1.plot_rigid_body_displacement()
+
+print("end of file")
