@@ -78,9 +78,9 @@ class Simulation:
         dl_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
         kkt = self.evaluate_hessian(self.lagrange_multipliers)
 
-        print("ending x position",self.x[-1]," c = ",c,"dc_dx=",dc_dx)
-        #print("ending x position",self.x[-1]," c = ",c)
-        dc_dx=None
+        #print("ending x position",self.x[-1]," c = ",c,"dc_dx=",dc_dx)
+        print("ending x position",self.x[-1]," c = ",c)
+        #dc_dx=None
         return [f, c, df_dx, dc_dx, d2f_dx2, dl_dx, kkt]
 
 
@@ -121,8 +121,8 @@ class Simulation:
     Evaluates the lagrangian objective (f + lambda*c) which is equivalent to the original objective (f) because c=0
     '''
     def evaluate_objective(self, u):
-        #return u.dot(u)
-        return self.evaluate_constraints()
+        return u.dot(u)
+        #return self.evaluate_constraints()
 
 
     '''
@@ -289,8 +289,8 @@ class Simulation:
         #plot above blue
         plt.plot(x_coords+0.5*np.cos(self.theta), y_coords+0.5*np.sin(self.theta), 'b*')
 
-        #plot above blue
-        plt.plot(x_coords+0.5*np.cos(self.theta), y_coords+0.5*np.sin(self.theta), 'orange*')
+        #plot target
+        plt.plot(x_coords+0.5*np.cos(self.theta), y_coords+0.5*np.sin(self.theta), 'o*')
 
         plt.title(f'Rigid Body Dynamics: {y_axis} vs. {x_axis}')
         plt.xlabel(x_axis)
