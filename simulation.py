@@ -9,7 +9,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 100
+        self.nt = 20
 
         self.x_target = 10.
         self.xdot_target = 0.
@@ -31,7 +31,7 @@ class Simulation:
     '''
     def preallocate_variables(self):
         self.num_control_inputs = 2*self.nt
-        self.num_constraints = 6    # 2D, each dof has a final condition constraint.
+        self.num_constraints = 4    # 2D, each dof has a final condition constraint.
 
         self.u = np.zeros((2*self.nt,))
         self.x = np.zeros((self.nt+1))
@@ -52,7 +52,8 @@ class Simulation:
     '''
     def setup(self):
         self.preallocate_variables()
-
+        self.W = np.zeros((self.nt + 1))
+        self.W[-1] = 1
     '''
     Evaluate the model
 
@@ -77,6 +78,9 @@ class Simulation:
         dl_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
         kkt = self.evaluate_hessian(self.lagrange_multipliers)
 
+        print("ending x position",self.x[-1]," c = ",c,"dc_dx=",dc_dx)
+        #print("ending x position",self.x[-1]," c = ",c)
+        dc_dx=None
         return [f, c, df_dx, dc_dx, d2f_dx2, dl_dx, kkt]
 
 
@@ -117,23 +121,23 @@ class Simulation:
     Evaluates the lagrangian objective (f + lambda*c) which is equivalent to the original objective (f) because c=0
     '''
     def evaluate_objective(self, u):
-        return u.dot(u)
+        #return u.dot(u)
+        return self.evaluate_constraints()
 
 
     '''
     Evaluates constraint functions to get the constraint vector.
     '''
     def evaluate_constraints(self):
-        W = np.zeros((self.nt+1))
-        W[-1] = 1
+
 
         c = np.zeros((self.num_constraints,))
-        c[0] = W.dot(self.x) - self.x_target
-        c[1] = W.dot(self.xdot) - self.xdot_target
-        c[2] = W.dot(self.y) - self.y_target
-        c[3] = W.dot(self.ydot) - self.ydot_target
-        c[4] = W.dot(self.theta) - self.theta_target
-        c[5] = W.dot(self.thetadot) - self.thetadot_target
+        c[0] = self.W.dot(self.x) - self.x_target
+        c[1] = self.W.dot(self.xdot) - self.xdot_target
+        c[2] = self.W.dot(self.y) - self.y_target
+        c[3] = self.W.dot(self.ydot) - self.ydot_target
+        #c[4] = self.W.dot(self.theta) - self.theta_target
+        #c[5] = self.W.dot(self.thetadot) - self.thetadot_target
 
         return c
 
@@ -162,7 +166,7 @@ class Simulation:
     dc_dx
     '''
     def evaluate_constraint_jacobian(self):
-        dc_du = np.zeros((6, 2*self.nt))
+        dc_du = np.zeros((self.num_constraints, 2*self.nt))
 
         W = np.zeros((self.nt))
         W[-1] = 1
@@ -194,8 +198,8 @@ class Simulation:
         dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
-        dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        #dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        #dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
         
         return dc_du
 
@@ -284,6 +288,9 @@ class Simulation:
 
         #plot above blue
         plt.plot(x_coords+0.5*np.cos(self.theta), y_coords+0.5*np.sin(self.theta), 'b*')
+
+        #plot above blue
+        plt.plot(x_coords+0.5*np.cos(self.theta), y_coords+0.5*np.sin(self.theta), 'orange*')
 
         plt.title(f'Rigid Body Dynamics: {y_axis} vs. {x_axis}')
         plt.xlabel(x_axis)
