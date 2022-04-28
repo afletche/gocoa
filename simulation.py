@@ -63,8 +63,8 @@ class Simulation:
         - model_outputs : List : [f, c, df_dx, dc_dx, d2f_dx2, dl_dx, kkt]
     '''
     def evaluate(self, x, rho=0.):
-        self.u = x[:(2*self.nt)]
-        self.lagrange_multipliers = x[(2*self.nt):]
+        self.u = x[:self.num_control_inputs]
+        self.lagrange_multipliers = x[self.num_control_inputs:]
 
         self.simulate_dynamics(self.u)
 
