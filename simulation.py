@@ -9,7 +9,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 20
+        self.nt = 10
 
         self.x_target = 10.
         self.xdot_target = 0.
@@ -31,7 +31,7 @@ class Simulation:
     '''
     def preallocate_variables(self):
         self.num_control_inputs = 2*self.nt
-        self.num_constraints = 4    # 2D, each dof has a final condition constraint.
+        self.num_constraints = 1    # 2D, each dof has a final condition constraint.
 
         self.u = np.zeros((2*self.nt,))
         self.x = np.zeros((self.nt+1))
@@ -71,7 +71,6 @@ class Simulation:
 
         f = self.evaluate_objective(self.u)
         c = self.evaluate_constraints()
-        # df_dx = self.evaluate_objective_gradient(self.u)
         df_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
         dc_dx = self.evaluate_constraint_jacobian()
         d2f_dx2 = self.evaluate_objective_hessian()
@@ -120,8 +119,8 @@ class Simulation:
     '''
     Evaluates the lagrangian objective (f + lambda*c) which is equivalent to the original objective (f) because c=0
     '''
-    def evaluate_objective(self, u):
-        #return u.dot(u)
+    def evaluate_objective(self, u, rho=0.):
+        # return u.dot(u) + 1/2*rho*(self.evaluate_constraints()**2)
         return self.evaluate_constraints()
 
 
@@ -133,9 +132,9 @@ class Simulation:
 
         c = np.zeros((self.num_constraints,))
         c[0] = self.W.dot(self.x) - self.x_target
-        c[1] = self.W.dot(self.xdot) - self.xdot_target
-        c[2] = self.W.dot(self.y) - self.y_target
-        c[3] = self.W.dot(self.ydot) - self.ydot_target
+        # c[1] = self.W.dot(self.xdot) - self.xdot_target
+        # c[2] = self.W.dot(self.y) - self.y_target
+        # c[3] = self.W.dot(self.ydot) - self.ydot_target
         #c[4] = self.W.dot(self.theta) - self.theta_target
         #c[5] = self.W.dot(self.thetadot) - self.thetadot_target
 
@@ -172,7 +171,7 @@ class Simulation:
         W[-1] = 1
         pc_px = W
 
-        px_pxdot = np.tril(np.ones((self.nt, self.nt)))*self.deltat
+        px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1)*self.deltat
 
         pxdotdot_pinput = np.zeros((self.nt, 2*self.nt))
         pydotdot_pinput = np.zeros((self.nt, 2*self.nt))
@@ -195,13 +194,19 @@ class Simulation:
         pydotdot_ptheta = np.diag(np.cos(self.theta[1:]))
 
         dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         #dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
         #dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
         
         return dc_du
+
+    def evaluate_analytic_test(self, x0):
+        self.lagrange_multipliers = np.array([x0[-1]])
+        # return self.lagrange_multipliers.dot(self.evaluate_constraint_jacobian())
+        return self.evaluate_gradient(self.u, self.lagrange_multipliers)
+        
 
 
     '''
