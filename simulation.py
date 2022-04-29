@@ -11,7 +11,7 @@ class Simulation:
     def __init__(self):
         self.nt = 50
 
-        self.x_target = 10.
+        self.x_target = 2.
         self.xdot_target = 0.
         self.y_target = 10.
         self.ydot_target = 0.
@@ -26,12 +26,13 @@ class Simulation:
         self.r = 0.5
         self.preallocate_variables()
 
+
     '''
     Preallocates memory for vectors across time.
     '''
     def preallocate_variables(self):
         self.num_control_inputs = 2*self.nt
-        self.num_constraints = 4    # 2D, each dof has a final condition constraint.
+        self.num_constraints = 1    # 2D, each dof has a final condition constraint.
 
         self.u = np.zeros((2*self.nt,))
         self.x = np.zeros((self.nt+1))
@@ -43,6 +44,8 @@ class Simulation:
         self.theta = np.zeros((self.nt+1))
         self.thetadot = np.zeros((self.nt+1))
         self.thetadotdot = np.zeros((self.nt+1))
+    def set_initial_cond(self):
+        self.theta[0] = np.pi / 2
 
 
     '''
@@ -52,6 +55,7 @@ class Simulation:
     '''
     def setup(self):
         self.preallocate_variables()
+        self.set_initial_cond()
         self.W = np.zeros((self.nt + 1))
         self.W[-1] = 1
     '''
@@ -133,9 +137,9 @@ class Simulation:
 
         c = np.zeros((self.num_constraints,))
         c[0] = self.W.dot(self.x) - self.x_target
-        c[1] = self.W.dot(self.xdot) - self.xdot_target
-        c[2] = self.W.dot(self.y) - self.y_target
-        c[3] = self.W.dot(self.ydot) - self.ydot_target
+        #c[1] = self.W.dot(self.xdot) - self.xdot_target
+        #c[2] = self.W.dot(self.y) - self.y_target
+        #c[3] = self.W.dot(self.ydot) - self.ydot_target
         #c[4] = self.W.dot(self.theta) - self.theta_target
         #c[5] = self.W.dot(self.thetadot) - self.thetadot_target
 
@@ -172,7 +176,7 @@ class Simulation:
         W[-1] = 1
         pc_px = W
 
-        px_pxdot = np.tril(np.ones((self.nt, self.nt)))*self.deltat
+        px_pxdot = np.tril(np.ones((self.nt, self.nt)),-1)*self.deltat
 
         pxdotdot_pinput = np.zeros((self.nt, 2*self.nt))
         pydotdot_pinput = np.zeros((self.nt, 2*self.nt))
@@ -195,9 +199,9 @@ class Simulation:
         pydotdot_ptheta = np.diag(np.cos(self.theta[1:]))
 
         dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        #dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        #dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        #dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         #dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
         #dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
         
