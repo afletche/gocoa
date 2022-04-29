@@ -31,7 +31,7 @@ class Simulation:
     '''
     def preallocate_variables(self):
         self.num_control_inputs = 2*self.nt
-        self.num_constraints = 4    # 2D, each dof has a final condition constraint.
+        self.num_constraints = 1    # 2D, each dof has a final condition constraint.
 
         self.u = np.zeros((2*self.nt,))
         self.x = np.zeros((self.nt+1))
@@ -43,6 +43,8 @@ class Simulation:
         self.theta = np.zeros((self.nt+1))
         self.thetadot = np.zeros((self.nt+1))
         self.thetadotdot = np.zeros((self.nt+1))
+        #derivative approximation step size
+        self.h = 1e-8
 
 
     '''
@@ -69,18 +71,22 @@ class Simulation:
 
         self.simulate_dynamics(self.u)
 
-        f = self.evaluate_objective(self.u)
         c = self.evaluate_constraints()
+        f = self.evaluate_objective(self.u)
         # df_dx = self.evaluate_objective_gradient(self.u)
-        df_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
-        dc_dx = self.evaluate_constraint_jacobian()
-        d2f_dx2 = self.evaluate_objective_hessian()
-        dl_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
-        kkt = self.evaluate_hessian(self.lagrange_multipliers)
-
+        #df_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
+        #dc_dx = self.evaluate_constraint_jacobian()
+        #d2f_dx2 = self.evaluate_objective_hessian()
+        #dl_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
+        #kkt = self.evaluate_hessian(self.lagrange_multipliers)
+        dc_dx = None
+        d2f_dx2 = None
+        dl_dx=None
+        kkt = None
         #print("ending x position",self.x[-1]," c = ",c,"dc_dx=",dc_dx)
         print("ending x position",self.x[-1]," c = ",c)
         #dc_dx=None
+        df_dx = None
         return [f, c, df_dx, dc_dx, d2f_dx2, dl_dx, kkt]
 
 
@@ -120,8 +126,8 @@ class Simulation:
     '''
     Evaluates the lagrangian objective (f + lambda*c) which is equivalent to the original objective (f) because c=0
     '''
-    def evaluate_objective(self, u):
-        return u.dot(u)
+    def evaluate_objective(self, u, rho=0.):
+        return u.dot(u)+ 0.5*rho*(self.evaluate_constraints()**2)
         #return self.evaluate_constraints()
 
 
@@ -133,9 +139,9 @@ class Simulation:
 
         c = np.zeros((self.num_constraints,))
         c[0] = self.W.dot(self.x) - self.x_target
-        c[1] = self.W.dot(self.xdot) - self.xdot_target
-        c[2] = self.W.dot(self.y) - self.y_target
-        c[3] = self.W.dot(self.ydot) - self.ydot_target
+        #c[1] = self.W.dot(self.xdot) - self.xdot_target
+        #c[2] = self.W.dot(self.y) - self.y_target
+        #c[3] = self.W.dot(self.ydot) - self.ydot_target
         #c[4] = self.W.dot(self.theta) - self.theta_target
         #c[5] = self.W.dot(self.thetadot) - self.thetadot_target
 
@@ -195,9 +201,9 @@ class Simulation:
         pydotdot_ptheta = np.diag(np.cos(self.theta[1:]))
 
         dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        #dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        #dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        #dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         #dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
         #dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
         
