@@ -137,7 +137,7 @@ class Simulation:
             else:
                 pass
         #print("quadpenalty shape",quadpenalty.shape)
-        return self.deltat*u.dot(u) + np.sum(quadpenalty) #
+        return self.deltat*u.dot(u) + 1000.0*self.deltat*np.sum(quadpenalty) #
         #return self.evaluate_constraints()
 
 
@@ -204,7 +204,7 @@ class Simulation:
         #print("derivative quadpenalty shape",dquadpenalty.shape,"dc/du shape",u.shape)
         dquadpenalty_du = np.transpose(dquadpenalty).dot(dtheta_du)
         #print("shape of dpenalty_du", dquadpenalty_du.shape)
-        return self.deltat*u + dquadpenalty_du
+        return self.deltat*u + 1000.0*self.deltat*dquadpenalty_du
 
 
     '''
