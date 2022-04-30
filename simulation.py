@@ -477,7 +477,7 @@ if __name__ == "__main__":
     print(sim1.y)
 
     sim1.plot_rigid_body_displacement()
-    #sim1.savefigures(-5,25,-5,25)
+    #sim1.savefigures(-5,20,-5,20)
     #sim1.generate_video("testplot1.avi",10)
     sim1.evaluate_objective_gradient(sim1.u)
     sim1.evaluate_constraint_jacobian()

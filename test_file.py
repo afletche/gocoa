@@ -30,4 +30,7 @@ solution = control_optimization.report(history=True)
 #control_optimization.plot()
 sim1.plot_rigid_body_displacement()
 
+sim1.savefigures(-5,20,-5,20)
+sim1.generate_video("testplot1.avi",10)
+
 print("end of file")
