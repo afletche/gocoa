@@ -32,11 +32,11 @@ def evaluate_fd(x0):
     lagrange_multipliers = np.array([x0[-1]])
 
     # return [sim1.theta[-1]]
-    # return c
+    return c
     # return [sim1.ydotdot[-1]]
     # return [sim1.xdotdot[-1]]
     # print(lagrange_multipliers.dot(c))
-    return [lagrange_multipliers.dot(c)]
+    # return [lagrange_multipliers.dot(c)]
 
 
 sim1.setup()
@@ -48,6 +48,7 @@ sim1.lagrange_multipliers = x0[-1]
 
 print('FD', finite_difference(evaluate_fd, x0)[:-1])
 print('ANALYTIC', sim1.evaluate_analytic_test(x0))
+print('JAC', sim1.evaluate(x0)[3])
 
 
 # control_optimization = OptimizationProblem()
@@ -58,7 +59,7 @@ print('ANALYTIC', sim1.evaluate_analytic_test(x0))
 # x0 = np.ones(sim1.num_control_inputs + sim1.num_constraints,)*200.
 # steepest_descent_optimizer.set_initial_guess(x0)
 # print("model outputs",control_optimization.evaluate_model(x0))
-#control_optimization.run(line_search='GFD', grad_norm_abs_tol=1.e-2, delta_x_abs_tol=1e-5, updating_penalty=True, max_iter=100000)
+# control_optimization.run(line_search='GFD', grad_norm_abs_tol=1.e-2, delta_x_abs_tol=1e-5, updating_penalty=True, max_iter=100000)
 # solution = control_optimization.report(history=True)
-#control_optimization.plot()
+# control_optimization.plot()
 # sim1.plot_rigid_body_displacement()
