@@ -13,9 +13,9 @@ class Simulation:
 
         self.x_target = 2.
         self.xdot_target = 0.
-        self.y_target = 10.
+        self.y_target = 2.
         self.ydot_target = 0.
-        self.theta_target = 0.
+        self.theta_target = np.pi / 2
         self.thetadot_target = 0.
 
         self.g = 9.81
@@ -125,7 +125,8 @@ class Simulation:
     Evaluates the lagrangian objective (f + lambda*c) which is equivalent to the original objective (f) because c=0
     '''
     def evaluate_objective(self, u):
-        return u.dot(u)
+        penalty = np.exp(-5*(self.theta+np.pi/6.0))+np.exp(-5*(7.0*np.pi/6.0-self.theta))
+        return u.dot(u)+np.sum(penalty)
         #return self.evaluate_constraints()
 
 
@@ -138,9 +139,9 @@ class Simulation:
         c = np.zeros((self.num_constraints,))
         c[0] = self.W.dot(self.x) - self.x_target
         #c[1] = self.W.dot(self.xdot) - self.xdot_target
-        #c[2] = self.W.dot(self.y) - self.y_target
+        #c[1] = self.W.dot(self.y) - self.y_target
         #c[3] = self.W.dot(self.ydot) - self.ydot_target
-        #c[4] = self.W.dot(self.theta) - self.theta_target
+        #c[1] = self.W.dot( np.mod(self.theta,np.pi*2) ) - self.theta_target
         #c[5] = self.W.dot(self.thetadot) - self.thetadot_target
 
         return c
