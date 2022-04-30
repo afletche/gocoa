@@ -98,8 +98,8 @@ class Simulation:
         self.xdot[tindex + 1] = self.deltat*self.xdotdot[tindex]+self.xdot[tindex]
         self.xdotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.cos(self.theta[tindex])/self.mass
         self.y[tindex + 1] = self.deltat*self.ydot[tindex]+self.y[tindex]
-        self.ydot[tindex + 1] = self.deltat*self.ydotdot[tindex]+self.ydot[tindex]-self.deltat*self.g
-        self.ydotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.sin(self.theta[tindex])/self.mass
+        self.ydot[tindex + 1] = self.deltat*self.ydotdot[tindex]+self.ydot[tindex]
+        self.ydotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.sin(self.theta[tindex])/self.mass-self.g
         #print("setp",tindex,"y",self.y[tindex + 1])
         #print("setp",tindex,"ydot",self.ydot[tindex + 1])
         #print("setp",tindex,"ydotdot",self.ydotdot[tindex + 1])
@@ -164,6 +164,9 @@ class Simulation:
     df_dx
     '''
     def evaluate_objective_gradient(self, u):
+        penalty = np.exp(-5 * (self.theta + np.pi / 6.0)) + np.exp(-5 * (7.0 * np.pi / 6.0 - self.theta))
+        dtheta_du = np.zeros((self.nt,2*self.nt))
+        print("penalty shape",penalty.shape,"dtheta/du",dtheta_du.shape)
         return u
 
 
@@ -455,4 +458,5 @@ if __name__ == "__main__":
     sim1.plot_rigid_body_displacement()
     #sim1.savefigures(-5,25,-5,25)
     #sim1.generate_video("testplot1.avi",10)
+    sim1.evaluate_objective_gradient(sim1.u)
     print("hello end of file")
