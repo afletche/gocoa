@@ -19,10 +19,10 @@ class Simulation:
         self.thetadot_target = 0.
 
         self.g = 9.81
-        self.tf = 30
+        self.tf = 3
         self.deltat = self.tf/self.nt
-        self.mass = 40
-        self.inertia = 10
+        self.mass = 50
+        self.inertia = 20
         self.r = 0.5
         self.preallocate_variables()
 
@@ -131,11 +131,11 @@ class Simulation:
 
 
         c = np.zeros((self.num_constraints,))
-        c[0] = self.W.dot(self.x) - self.x_target
+        c[0] = self.W.dot(self.y) - self.y_target
         # c[1] = self.W.dot(self.xdot) - self.xdot_target
-        # c[2] = self.W.dot(self.y) - self.y_target
+        # c[0] = self.W.dot(self.y) - self.y_target
         # c[3] = self.W.dot(self.ydot) - self.ydot_target
-        #c[4] = self.W.dot(self.theta) - self.theta_target
+        # c[0] = self.W.dot(self.theta) - self.theta_target
         #c[5] = self.W.dot(self.thetadot) - self.thetadot_target
 
         return c
@@ -187,25 +187,71 @@ class Simulation:
             pthetadotdot_pinput[i, 2*i] = -1.
             pthetadotdot_pinput[i, 2*i+1] = 1.
 
-        pacceleration_pinput_translational = pxdotdot_pinput/self.mass
+        pxdotdot_pinput = pxdotdot_pinput/self.mass
+        pydotdot_pinput = pydotdot_pinput/self.mass
         pacceleration_pinput_rotational = pthetadotdot_pinput*self.r/self.inertia
         
-        pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:]))
-        pydotdot_ptheta = np.diag(np.cos(self.theta[1:]))
+        even_indices = np.arange(0, self.num_control_inputs-2, 2)
+        odd_indices = np.arange(1, self.num_control_inputs-2, 2)
+        pxdotdot_coefficient = (np.diag(self.u[odd_indices], -1) + np.diag(self.u[even_indices], -1))/self.mass
+        pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:-1]), -1)*pxdotdot_coefficient
+        pydotdot_ptheta = np.diag(np.cos(self.theta[1:-1]), -1)*pxdotdot_coefficient
 
-        dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        # dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        # dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        #dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
-        #dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[1,:] = pc_px.dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[2,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_ptheta + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[3,:] = pc_px.dot(px_pxdot).dot(pydotdot_ptheta + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
         
         return dc_du
 
     def evaluate_analytic_test(self, x0):
         self.lagrange_multipliers = np.array([x0[-1]])
         # return self.lagrange_multipliers.dot(self.evaluate_constraint_jacobian())
-        return self.evaluate_gradient(self.u, self.lagrange_multipliers)
+        # return self.evaluate_gradient(self.u, self.lagrange_multipliers)
+        dc_du = np.zeros((self.num_constraints, 2*self.nt))
+
+        W = np.zeros((self.nt))
+        W[-1] = 1
+        pc_px = W
+
+        px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1)*self.deltat
+
+        pxdotdot_pinput = np.zeros((self.nt, 2*self.nt))
+        pydotdot_pinput = np.zeros((self.nt, 2*self.nt))
+        pthetadotdot_pinput = np.zeros((self.nt, 2*self.nt))
+        for i in range(self.nt):
+            cos_theta = np.cos(self.theta[i])
+            pxdotdot_pinput[i, 2*i] = cos_theta
+            pxdotdot_pinput[i, 2*i+1] = cos_theta
+            sin_theta = np.sin(self.theta[i])
+            pydotdot_pinput[i, 2*i] = sin_theta
+            pydotdot_pinput[i, 2*i+1] = sin_theta
+
+            pthetadotdot_pinput[i, 2*i] = -1.
+            pthetadotdot_pinput[i, 2*i+1] = 1.
+
+
+        pxdotdot_pinput = pxdotdot_pinput/self.mass
+        pydotdot_pinput = pydotdot_pinput/self.mass
+        pacceleration_pinput_rotational = pthetadotdot_pinput*self.r/self.inertia
+        
+        even_indices = np.arange(0, self.num_control_inputs-2, 2)
+        odd_indices = np.arange(1, self.num_control_inputs-2, 2)
+        pxdotdot_coefficient = (np.diag(x0[odd_indices], -1) + np.diag(x0[even_indices], -1))/self.mass
+        pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:-1]), -1)*pxdotdot_coefficient
+        # print(pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)[-1])
+        pydotdot_ptheta = np.diag(np.cos(self.theta[1:-1]), -1)*pxdotdot_coefficient
+
+        # dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # return (pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))[-1]
+        # return (pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))[-1]
+        # return (px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)[-1]
+        # return dc_du
+        return self.lagrange_multipliers.dot(dc_du)
         
 
 

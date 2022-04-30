@@ -27,22 +27,26 @@ def evaluate_fd(x0):
     sim1.simulate_dynamics(x0[:-1])
 
     c = np.zeros((sim1.num_constraints,))
-    c[0] = sim1.W.dot(sim1.x) - sim1.x_target
+    c[0] = sim1.W.dot(sim1.y) - sim1.y_target
     
     lagrange_multipliers = np.array([x0[-1]])
 
-    # return [sim1.thetadot[-1]]
+    # return [sim1.theta[-1]]
     # return c
-    print(lagrange_multipliers.dot(c))
+    # return [sim1.ydotdot[-1]]
+    # return [sim1.xdotdot[-1]]
+    # print(lagrange_multipliers.dot(c))
     return [lagrange_multipliers.dot(c)]
 
 
 sim1.setup()
+sim1.theta[0] = np.pi/2
 x0 = np.ones(sim1.num_control_inputs + sim1.num_constraints,)*200.
+x0[2] = 100
 sim1.simulate_dynamics(x0[:-1])
 sim1.lagrange_multipliers = x0[-1]
 
-print('FD', finite_difference(evaluate_fd, x0))
+print('FD', finite_difference(evaluate_fd, x0)[:-1])
 print('ANALYTIC', sim1.evaluate_analytic_test(x0))
 
 
