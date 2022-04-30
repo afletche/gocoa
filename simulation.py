@@ -17,11 +17,11 @@ class Simulation:
         self.theta_target = np.pi / 2
         self.thetadot_target = 0.
 
-        self.g = 9.81
+        self.g = 9.81 #1.62
         self.tf = 5
         self.deltat = self.tf/self.nt
         self.x_target = 2.
-        self.y_target = 2. + 0.5*self.g*(self.tf)*(self.tf)
+        self.y_target = 2. #+ 0.5*self.g*(self.tf)*(self.tf)
         self.mass = 40
         self.inertia = 10
         self.r = 0.5
@@ -100,7 +100,7 @@ class Simulation:
         self.xdotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.cos(self.theta[tindex])/self.mass
         self.y[tindex + 1] = self.deltat*self.ydot[tindex]+self.y[tindex]
         self.ydot[tindex + 1] = self.deltat*self.ydotdot[tindex]+self.ydot[tindex]
-        self.ydotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.sin(self.theta[tindex])/self.mass #-self.g
+        self.ydotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.sin(self.theta[tindex])/self.mass -self.g
         #print("setp",tindex,"y",self.y[tindex + 1])
         #print("setp",tindex,"ydot",self.ydot[tindex + 1])
         #print("setp",tindex,"ydotdot",self.ydotdot[tindex + 1])
@@ -180,7 +180,7 @@ class Simulation:
         #dpenalty_du = np.transpose(dpenalty).dot(dtheta_du)
         #print("shape of dpenalty_du", dpenalty_du.shape,"shape of u",u.shape,"last 3 angles",self.theta[-4:-1])
         #print("values of dpenalty_du", dpenalty_du)
-        return u #+dpenalty_du
+        return self.deltat*u #+dpenalty_du
 
 
     '''
