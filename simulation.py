@@ -180,7 +180,7 @@ class Simulation:
         W[-1] = 1
         pc_px = W
 
-        px_pxdot = np.tril(np.ones((self.nt, self.nt)),-1)*self.deltat
+        px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1)*self.deltat
 
         pxdotdot_pinput = np.zeros((self.nt, 2*self.nt))
         pydotdot_pinput = np.zeros((self.nt, 2*self.nt))
@@ -196,21 +196,23 @@ class Simulation:
             pthetadotdot_pinput[i, 2*i] = -1.
             pthetadotdot_pinput[i, 2*i+1] = 1.
 
-        pacceleration_pinput_translational = pxdotdot_pinput/self.mass
+        pxdotdot_pinput = pxdotdot_pinput/self.mass
+        pydotdot_pinput = pydotdot_pinput/self.mass
         pacceleration_pinput_rotational = pthetadotdot_pinput*self.r/self.inertia
         
-        pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:]))
-        pydotdot_ptheta = np.diag(np.cos(self.theta[1:]))
+        even_indices = np.arange(0, self.num_control_inputs-2, 2)
+        odd_indices = np.arange(1, self.num_control_inputs-2, 2)
+        pxdotdot_coefficient = (np.diag(self.u[odd_indices], -1) + np.diag(self.u[even_indices], -1))/self.mass
+        pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:-1]), -1)*pxdotdot_coefficient
+        pydotdot_ptheta = np.diag(np.cos(self.theta[1:-1]), -1)*pxdotdot_coefficient
 
-        dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        #dc_du[1,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        #dc_du[1,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        #dc_du[3,:] = pc_px.dot(px_pxdot).dot(pacceleration_pinput_translational + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        #dc_du[1,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
-        #dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
-        
+        dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[3,:] = pc_px.dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        # dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
         return dc_du
-
 
     '''
     KKT Matrix
