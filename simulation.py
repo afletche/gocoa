@@ -9,7 +9,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 10
+        self.nt = 50
 
         self.x_target = 2.
         self.xdot_target = 0.
@@ -119,7 +119,7 @@ class Simulation:
     Evaluates the lagrangian objective (f + lambda*c) which is equivalent to the original objective (f) because c=0
     '''
     def evaluate_objective(self, u, rho=0.):
-        return u.dot(u)
+        return self.deltat*u.dot(u)
 
 
     '''
@@ -129,9 +129,9 @@ class Simulation:
 
 
         c = np.zeros((self.num_constraints,))
-        # c[0] = self.W.dot(self.x) - self.x_target
+        c[0] = self.W.dot(self.x) - self.x_target
         # c[1] = self.W.dot(self.xdot) - self.xdot_target
-        c[0] = self.W.dot(self.y) - self.y_target
+        # c[0] = self.W.dot(self.y) - self.y_target
         # c[3] = self.W.dot(self.ydot) - self.ydot_target
         # c[0] = self.W.dot(self.theta) - self.theta_target
         #c[5] = self.W.dot(self.thetadot) - self.thetadot_target
