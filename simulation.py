@@ -11,9 +11,8 @@ class Simulation:
     def __init__(self):
         self.nt = 50
 
-        self.x_target = 2.
+
         self.xdot_target = 0.
-        self.y_target = 2.
         self.ydot_target = 0.
         self.theta_target = np.pi / 2
         self.thetadot_target = 0.
@@ -21,6 +20,8 @@ class Simulation:
         self.g = 9.81
         self.tf = 5
         self.deltat = self.tf/self.nt
+        self.x_target = 2.
+        self.y_target = 2. + 0.5*self.g*(self.tf)*(self.tf)
         self.mass = 40
         self.inertia = 10
         self.r = 0.5
@@ -32,7 +33,7 @@ class Simulation:
     '''
     def preallocate_variables(self):
         self.num_control_inputs = 2*self.nt
-        self.num_constraints = 1    # 2D, each dof has a final condition constraint.
+        self.num_constraints = 2    # 2D, each dof has a final condition constraint.
 
         self.u = np.zeros((2*self.nt,))
         self.x = np.zeros((self.nt+1))
@@ -83,7 +84,7 @@ class Simulation:
         kkt = self.evaluate_hessian(self.lagrange_multipliers)
 
         #print("ending x position",self.x[-1]," c = ",c,"dc_dx=",dc_dx)
-        print("ending x position",self.x[-1]," c = ",c)
+        print("ending x position",self.x[-1]," c = ",c,"last 3 angles  = ",self.theta[-4:-1])
         #dc_dx=None
         return [f, c, df_dx, dc_dx, d2f_dx2, dl_dx, kkt]
 
@@ -99,7 +100,7 @@ class Simulation:
         self.xdotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.cos(self.theta[tindex])/self.mass
         self.y[tindex + 1] = self.deltat*self.ydot[tindex]+self.y[tindex]
         self.ydot[tindex + 1] = self.deltat*self.ydotdot[tindex]+self.ydot[tindex]
-        self.ydotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.sin(self.theta[tindex])/self.mass-self.g
+        self.ydotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.sin(self.theta[tindex])/self.mass #-self.g
         #print("setp",tindex,"y",self.y[tindex + 1])
         #print("setp",tindex,"ydot",self.ydot[tindex + 1])
         #print("setp",tindex,"ydotdot",self.ydotdot[tindex + 1])
@@ -125,8 +126,8 @@ class Simulation:
     Evaluates the lagrangian objective (f + lambda*c) which is equivalent to the original objective (f) because c=0
     '''
     def evaluate_objective(self, u):
-        penalty = np.exp(-5*(self.theta+np.pi/6.0))+np.exp(-5*(7.0*np.pi/6.0-self.theta))
-        return u.dot(u)+np.sum(penalty)
+        #penalty = np.exp(-1.0*(self.theta+np.pi/6.0))+np.exp(-1.0*(7.0*np.pi/6.0-self.theta))
+        return self.deltat*u.dot(u) #+np.sum(penalty) #
         #return self.evaluate_constraints()
 
 
@@ -139,7 +140,7 @@ class Simulation:
         c = np.zeros((self.num_constraints,))
         c[0] = self.W.dot(self.x) - self.x_target
         #c[1] = self.W.dot(self.xdot) - self.xdot_target
-        #c[1] = self.W.dot(self.y) - self.y_target
+        c[1] = self.W.dot(self.y) - self.y_target
         #c[3] = self.W.dot(self.ydot) - self.ydot_target
         #c[1] = self.W.dot( np.mod(self.theta,np.pi*2) ) - self.theta_target
         #c[5] = self.W.dot(self.thetadot) - self.thetadot_target
@@ -164,10 +165,22 @@ class Simulation:
     df_dx
     '''
     def evaluate_objective_gradient(self, u):
-        penalty = np.exp(-5 * (self.theta + np.pi / 6.0)) + np.exp(-5 * (7.0 * np.pi / 6.0 - self.theta))
-        dtheta_du = np.zeros((self.nt,2*self.nt))
-        print("penalty shape",penalty.shape,"dtheta/du",dtheta_du.shape)
-        return u
+        #dpenalty = -1.0*np.exp(-1.0 * (self.theta[1:] + np.pi / 6.0)) + 1.0*np.exp(-1.0 * (7.0 * np.pi / 6.0 - self.theta[1:]))
+        #dtheta_du = np.zeros((self.nt,2*self.nt))
+        #print("penalty shape",dpenalty.shape,"dtheta/du",dtheta_du.shape)
+
+        #px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1) * self.deltat
+        #pthetadotdot_pinput = np.zeros((self.nt, 2 * self.nt))
+        #for i in range(self.nt):
+        #    pthetadotdot_pinput[i, 2 * i] = -1.
+        #    pthetadotdot_pinput[i, 2 * i + 1] = 1.
+        #pacceleration_pinput_rotational = pthetadotdot_pinput * self.r / self.inertia
+        #dtheta_du = (px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        #("shape of dtheta_du", dtheta_du.shape)
+        #dpenalty_du = np.transpose(dpenalty).dot(dtheta_du)
+        #print("shape of dpenalty_du", dpenalty_du.shape,"shape of u",u.shape,"last 3 angles",self.theta[-4:-1])
+        #print("values of dpenalty_du", dpenalty_du)
+        return u #+dpenalty_du
 
 
     '''
@@ -206,9 +219,15 @@ class Simulation:
         pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:-1]), -1)*pxdotdot_coefficient
         pydotdot_ptheta = np.diag(np.cos(self.theta[1:-1]), -1)*pxdotdot_coefficient
 
-        dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        #this is d theta / d u . it is an (tn+1)x(2tn) matrix
+        dtheta_du = (px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+        #print("shape of dtheta_du",dtheta_du.shape)
+
+        #dc_du[0, :] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[0, :] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(dtheta_du))
+
         # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        # dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[1,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[3,:] = pc_px.dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
         # dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
@@ -461,4 +480,5 @@ if __name__ == "__main__":
     #sim1.savefigures(-5,25,-5,25)
     #sim1.generate_video("testplot1.avi",10)
     sim1.evaluate_objective_gradient(sim1.u)
+    sim1.evaluate_constraint_jacobian()
     print("hello end of file")

@@ -5,11 +5,6 @@ from optimization_framework.optimization_problem import OptimizationProblem
 from optimization_framework.optimizers.gradient_descent_optimizer import GradientDescentOptimizer
 
 sim1 = Simulation()
-sim1.theta[0] = np.pi/2
-sim1.u[0] = 1
-sim1.u[1] = 1.1
-sim1.u[2] = 7
-sim1.u[6] = 6
 #print(sim1.y)
 sim1.simulate_dynamics(sim1.u)
 
