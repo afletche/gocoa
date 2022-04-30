@@ -13,7 +13,7 @@ class Simulation:
 
         self.x_target = 2.
         self.xdot_target = 0.
-        self.y_target = -120.
+        self.y_target = 2.
         self.ydot_target = 0.
         self.theta_target = 0.
         self.thetadot_target = 0.
@@ -54,6 +54,7 @@ class Simulation:
         self.preallocate_variables()
         self.W = np.zeros((self.nt + 1))
         self.W[-1] = 1
+        self.theta[0] = 0.
     '''
     Evaluate the model
 
@@ -64,6 +65,7 @@ class Simulation:
         - model_outputs : List : [f, c, df_dx, dc_dx, d2f_dx2, dl_dx, kkt]
     '''
     def evaluate(self, x, rho=0.):
+        self.theta[0] = np.pi/2
         self.u = x[:self.num_control_inputs]
         self.lagrange_multipliers = x[self.num_control_inputs:]
 
@@ -92,7 +94,7 @@ class Simulation:
         self.xdot[tindex + 1] = self.deltat*self.xdotdot[tindex]+self.xdot[tindex]
         self.xdotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.cos(self.theta[tindex])/self.mass
         self.y[tindex + 1] = self.deltat*self.ydot[tindex]+self.y[tindex]
-        self.ydot[tindex + 1] = self.deltat*self.ydotdot[tindex]+self.ydot[tindex]-self.deltat*self.g
+        self.ydot[tindex + 1] = self.deltat*self.ydotdot[tindex]+self.ydot[tindex]# -self.deltat*self.g
         self.ydotdot[tindex + 1] = (u[2*tindex]+u[2*tindex+1])*np.sin(self.theta[tindex])/self.mass
         #print("setp",tindex,"y",self.y[tindex + 1])
         #print("setp",tindex,"ydot",self.ydot[tindex + 1])
@@ -195,7 +197,10 @@ class Simulation:
         pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:-1]), -1)*pxdotdot_coefficient
         pydotdot_ptheta = np.diag(np.cos(self.theta[1:-1]), -1)*pxdotdot_coefficient
 
-        dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dtheta_du = px_pxdot.dot(px_pxdot).dot(pacceleration_pinput_rotational)
+
+        # dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(dtheta_du))
         # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[0,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[3,:] = pc_px.dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
@@ -241,9 +246,9 @@ class Simulation:
         # print(pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)[-1])
         pydotdot_ptheta = np.diag(np.cos(self.theta[1:-1]), -1)*pxdotdot_coefficient
 
-        # dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        # dc_du[0,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[3,:] = pc_px.dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
         # dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
