@@ -39,16 +39,16 @@ def evaluate_fd(x0):
     # return [lagrange_multipliers.dot(c)]
 
 
-sim1.setup()
-sim1.theta[0] = np.pi/2
-x0 = np.ones(sim1.num_control_inputs + sim1.num_constraints,)*200.
-x0[2] = 100
-sim1.simulate_dynamics(x0[:-1])
-sim1.lagrange_multipliers = x0[-1]
+# sim1.setup()
+# sim1.theta[0] = np.pi/2
+# x0 = np.ones(sim1.num_control_inputs + sim1.num_constraints,)*200.
+# x0[2] = 100
+# sim1.simulate_dynamics(x0[:-1])
+# sim1.lagrange_multipliers = x0[-1]
 
-print('FD', finite_difference(evaluate_fd, x0)[:-1])
-print('ANALYTIC', sim1.evaluate_analytic_test(x0))
-print('JAC', sim1.evaluate(x0)[3])
+# print('FD', finite_difference(evaluate_fd, x0)[:-1])
+# print('ANALYTIC', sim1.evaluate_analytic_test(x0))
+# print('JAC', sim1.evaluate(x0)[3])
 
 
 control_optimization = OptimizationProblem()
