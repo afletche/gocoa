@@ -46,7 +46,7 @@ class Simulation:
         self.thetadot = np.zeros((self.nt+1))
         self.thetadotdot = np.zeros((self.nt+1))
     def set_initial_cond(self):
-        self.theta[0] = np.pi / 2
+        self.theta[0] = 2.0*np.pi / 2
 
 
     '''
@@ -127,7 +127,17 @@ class Simulation:
     '''
     def evaluate_objective(self, u):
         #penalty = np.exp(-1.0*(self.theta+np.pi/6.0))+np.exp(-1.0*(7.0*np.pi/6.0-self.theta))
-        return self.deltat*u.dot(u) #+np.sum(penalty) #
+
+        quadpenalty = np.zeros((self.nt,))
+        for intex in range(self.nt):
+            if np.pi/6.0+self.theta[intex+1]<0:
+                quadpenalty[intex]+=(np.pi/6.0+self.theta[intex+1])*(np.pi/6.0+self.theta[intex+1])
+            elif 7.0*np.pi/6.0-self.theta[intex+1]<0:
+                quadpenalty[intex]+=(7.0*np.pi/6.0-self.theta[intex+1])*(7.0*np.pi/6.0-self.theta[intex+1])
+            else:
+                pass
+        #print("quadpenalty shape",quadpenalty.shape)
+        return self.deltat*u.dot(u) + np.sum(quadpenalty) #
         #return self.evaluate_constraints()
 
 
@@ -166,21 +176,35 @@ class Simulation:
     '''
     def evaluate_objective_gradient(self, u):
         #dpenalty = -1.0*np.exp(-1.0 * (self.theta[1:] + np.pi / 6.0)) + 1.0*np.exp(-1.0 * (7.0 * np.pi / 6.0 - self.theta[1:]))
-        #dtheta_du = np.zeros((self.nt,2*self.nt))
-        #print("penalty shape",dpenalty.shape,"dtheta/du",dtheta_du.shape)
+        #print("penalty shape",dpenalty.shape)
 
-        #px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1) * self.deltat
-        #pthetadotdot_pinput = np.zeros((self.nt, 2 * self.nt))
-        #for i in range(self.nt):
-        #    pthetadotdot_pinput[i, 2 * i] = -1.
-        #    pthetadotdot_pinput[i, 2 * i + 1] = 1.
-        #pacceleration_pinput_rotational = pthetadotdot_pinput * self.r / self.inertia
-        #dtheta_du = (px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
-        #("shape of dtheta_du", dtheta_du.shape)
+        px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1) * self.deltat
+        pthetadotdot_pinput = np.zeros((self.nt, 2 * self.nt))
+        for i in range(self.nt):
+            pthetadotdot_pinput[i, 2 * i] = -1.
+            pthetadotdot_pinput[i, 2 * i + 1] = 1.
+        pacceleration_pinput_rotational = pthetadotdot_pinput * self.r / self.inertia
+        #deltat just added, might be more correct now
+        dtheta_du = self.deltat*(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
+
+        #print("shape of dtheta_du", dtheta_du.shape)
         #dpenalty_du = np.transpose(dpenalty).dot(dtheta_du)
         #print("shape of dpenalty_du", dpenalty_du.shape,"shape of u",u.shape,"last 3 angles",self.theta[-4:-1])
         #print("values of dpenalty_du", dpenalty_du)
-        return self.deltat*u #+dpenalty_du
+        #return self.deltat*u +dpenalty_du
+
+        dquadpenalty = np.zeros((self.nt,))
+        for intex in range(self.nt):
+            if np.pi / 6.0 + self.theta[intex + 1] < 0:
+                dquadpenalty[intex] += 2.0*(np.pi / 6.0 + self.theta[intex + 1])
+            elif 7.0 * np.pi / 6.0 - self.theta[intex + 1] < 0:
+                dquadpenalty[intex] += -2.0*(7.0 * np.pi / 6.0 - self.theta[intex + 1])
+            else:
+                pass
+        #print("derivative quadpenalty shape",dquadpenalty.shape,"dc/du shape",u.shape)
+        dquadpenalty_du = np.transpose(dquadpenalty).dot(dtheta_du)
+        #print("shape of dpenalty_du", dquadpenalty_du.shape)
+        return self.deltat*u + dquadpenalty_du
 
 
     '''
@@ -479,6 +503,7 @@ if __name__ == "__main__":
     sim1.plot_rigid_body_displacement()
     #sim1.savefigures(-5,20,-5,20)
     #sim1.generate_video("testplot1.avi",10)
+    sim1.evaluate_objective(sim1.u)
     sim1.evaluate_objective_gradient(sim1.u)
     sim1.evaluate_constraint_jacobian()
     print("hello end of file")

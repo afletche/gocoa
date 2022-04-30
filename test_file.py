@@ -29,8 +29,9 @@ control_optimization.run(line_search='GFD', grad_norm_abs_tol=1.e-2, delta_x_abs
 solution = control_optimization.report(history=True)
 #control_optimization.plot()
 sim1.plot_rigid_body_displacement()
+print("final generic cost evaluation",sim1.deltat*sim1.u.dot(sim1.u))
 
-sim1.savefigures(-5,20,-5,20)
+sim1.savefigures(-5,25,-5,25)
 sim1.generate_video("testplot1.avi",10)
 
 print("end of file")
