@@ -3,6 +3,7 @@ import numpy as np
 from simulation import Simulation
 from optimization_framework.optimization_problem import OptimizationProblem
 from optimization_framework.optimizers.gradient_descent_optimizer import GradientDescentOptimizer
+from optimization_framework.optimizers.newton_optimizer import NewtonOptimizer
 
 sim1 = Simulation()
 #print(sim1.y)
@@ -19,15 +20,19 @@ print(sim1.y)
 
 control_optimization = OptimizationProblem()
 steepest_descent_optimizer = GradientDescentOptimizer(alpha=1e-3)
+newton_optimizer = NewtonOptimizer()
 control_optimization.set_model(model=sim1)
-control_optimization.set_optimizer(steepest_descent_optimizer)
+# control_optimization.set_optimizer(steepest_descent_optimizer)
+control_optimization.set_optimizer(newton_optimizer)
 control_optimization.setup()
 x0 = np.ones(sim1.num_control_inputs + sim1.num_constraints,)*200.
 steepest_descent_optimizer.set_initial_guess(x0)
+newton_optimizer.set_initial_guess(x0)
 
-control_optimization.run(line_search='GFD', grad_norm_abs_tol=1.e-2, delta_x_abs_tol=1e-5, updating_penalty=True, max_iter=15000)
+# control_optimization.run(line_search='GFD', grad_norm_abs_tol=1.e-2, delta_x_abs_tol=1e-5, updating_penalty=True, max_iter=15000)
+control_optimization.run(line_search=None, grad_norm_abs_tol=1.e-2, delta_x_abs_tol=1e-5, max_iter=15000)
 solution = control_optimization.report(history=True)
-#control_optimization.plot()
+control_optimization.plot()
 sim1.plot_rigid_body_displacement()
 print("final generic cost evaluation",sim1.deltat*sim1.u.dot(sim1.u))
 

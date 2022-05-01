@@ -74,8 +74,8 @@ class Simulation:
 
         self.simulate_dynamics(self.u)
 
-        f = self.evaluate_objective(self.u)
         c = self.evaluate_constraints()
+        f = self.evaluate_objective(self.u) + self.lagrange_multipliers.dot(c)
         # df_dx = self.evaluate_objective_gradient(self.u)
         df_dx = self.evaluate_gradient(self.u, self.lagrange_multipliers)
         dc_dx = self.evaluate_constraint_jacobian()
@@ -137,7 +137,7 @@ class Simulation:
             else:
                 pass
         #print("quadpenalty shape",quadpenalty.shape)
-        return self.deltat*u.dot(u) + 1000.0*self.deltat*np.sum(quadpenalty) #
+        return self.deltat*u.dot(u)# + 10000.0*self.deltat*np.sum(quadpenalty) #
         #return self.evaluate_constraints()
 
 
@@ -204,7 +204,7 @@ class Simulation:
         #print("derivative quadpenalty shape",dquadpenalty.shape,"dc/du shape",u.shape)
         dquadpenalty_du = np.transpose(dquadpenalty).dot(dtheta_du)
         #print("shape of dpenalty_du", dquadpenalty_du.shape)
-        return self.deltat*u + 1000.0*self.deltat*dquadpenalty_du
+        return 2*self.deltat*u#  + 10000.0*self.deltat*dquadpenalty_du
 
 
     '''
@@ -248,10 +248,10 @@ class Simulation:
         #print("shape of dtheta_du",dtheta_du.shape)
 
         #dc_du[0, :] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[0, :] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(dtheta_du))
+        dc_du[0, :] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(dtheta_du))
 
         # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[1,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[1,:] = pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[3,:] = pc_px.dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
         # dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
@@ -261,7 +261,15 @@ class Simulation:
     KKT Matrix
     '''
     def evaluate_hessian(self, lagrangian_multipliers):
-        return None
+        objective_hessian = self.evaluate_objective_hessian()
+        constraint_jacobian = self.evaluate_constraint_jacobian()
+
+        KKT = np.zeros((self.num_control_inputs + self.num_constraints, self.num_control_inputs + self.num_constraints))
+        KKT[:self.num_control_inputs, :self.num_control_inputs] = objective_hessian
+        KKT[self.num_control_inputs:, :self.num_control_inputs] = constraint_jacobian
+        KKT[:self.num_control_inputs, self.num_control_inputs:] = constraint_jacobian.T
+        # KKT[self.num_control_inputs:, self.num_control_inputs] = np.zeros((self.num_constraints, self.num_constraints))   # Unnecessary since preallocated to zeros
+        return KKT
 
 
     '''
