@@ -9,7 +9,7 @@ from scipy.misc import derivative
 class Simulation:
 
     def __init__(self):
-        self.nt = 50
+        self.nt = 50 # default is 50
 
 
         self.xdot_target = 0.
@@ -45,6 +45,14 @@ class Simulation:
         self.theta = np.zeros((self.nt+1))
         self.thetadot = np.zeros((self.nt+1))
         self.thetadotdot = np.zeros((self.nt+1))
+
+        self.numobstacles = 1
+        self.obstacleradii = 1.0*np.ones((self.numobstacles))
+        self.obstaclepositions = 0.5*np.ones((self.numobstacles,2))
+        self.obstaclepositions[0, 0]=1.
+        self.obstaclepositions[0, 1] = 5.0
+        self.numobstacles=1
+
     def set_initial_cond(self):
         self.theta[0] = 2.0*np.pi / 2
 
@@ -137,7 +145,22 @@ class Simulation:
             else:
                 pass
         #print("quadpenalty shape",quadpenalty.shape)
-        return self.deltat*u.dot(u) + 1000.0*self.deltat*np.sum(quadpenalty) #
+
+        obstpenalty = np.zeros((self.numobstacles,self.nt,))
+        distsquare=0
+        for intj in range(self.numobstacles):
+            for intex in range(self.nt):
+                # if position is too close to obstacle add a penalty of that
+                distsquare = (self.x[intex+1] - self.obstaclepositions[intj, 0]) * (
+                            self.x[intex+1] - self.obstaclepositions[intj, 0]) + (
+                                         self.y[intex+1] - self.obstaclepositions[intj, 1]) * (
+                                         self.y[intex+1] - self.obstaclepositions[intj, 1])
+                if distsquare - (self.obstacleradii[intj] + 2.0 * self.r) * (self.obstacleradii[intj] + 2.0 * self.r) < 0:
+                    obstpenalty[intj,intex]=((self.obstacleradii[intj] + 2.0 * self.r)-np.sqrt(distsquare))**2
+
+        endpenalty = ((self.x[-1]-self.x_target)**2)+((self.y[-1]-self.y_target)**2)
+
+        return self.deltat*u.dot(u) + 10000.0*self.deltat*np.sum(quadpenalty)+10000.0*self.deltat*np.sum(obstpenalty)+10000.0*self.nt*self.deltat*endpenalty #
         #return self.evaluate_constraints()
 
 
@@ -177,12 +200,21 @@ class Simulation:
     def evaluate_objective_gradient(self, u):
         #dpenalty = -1.0*np.exp(-1.0 * (self.theta[1:] + np.pi / 6.0)) + 1.0*np.exp(-1.0 * (7.0 * np.pi / 6.0 - self.theta[1:]))
         #print("penalty shape",dpenalty.shape)
-
+        pxdotdot_pinput = np.zeros((self.nt, 2 * self.nt))
+        pydotdot_pinput = np.zeros((self.nt, 2 * self.nt))
         px_pxdot = np.tril(np.ones((self.nt, self.nt)), -1) * self.deltat
         pthetadotdot_pinput = np.zeros((self.nt, 2 * self.nt))
         for i in range(self.nt):
+            cos_theta = np.cos(self.theta[i])
+            pxdotdot_pinput[i, 2*i] = cos_theta
+            pxdotdot_pinput[i, 2*i+1] = cos_theta
+            sin_theta = np.sin(self.theta[i])
+            pydotdot_pinput[i, 2*i] = sin_theta
+            pydotdot_pinput[i, 2*i+1] = sin_theta
             pthetadotdot_pinput[i, 2 * i] = -1.
             pthetadotdot_pinput[i, 2 * i + 1] = 1.
+        pxdotdot_pinput = pxdotdot_pinput / self.mass
+        pydotdot_pinput = pydotdot_pinput / self.mass
         pacceleration_pinput_rotational = pthetadotdot_pinput * self.r / self.inertia
         #deltat just added, might be more correct now
         dtheta_du = self.deltat*(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
@@ -204,8 +236,52 @@ class Simulation:
         #print("derivative quadpenalty shape",dquadpenalty.shape,"dc/du shape",u.shape)
         dquadpenalty_du = np.transpose(dquadpenalty).dot(dtheta_du)
         #print("shape of dpenalty_du", dquadpenalty_du.shape)
-        return self.deltat*u + 1000.0*self.deltat*dquadpenalty_du
 
+        dobstxpenalty = np.zeros((self.numobstacles, self.nt,))
+        dobstypenaltyvert = np.zeros((self.numobstacles, self.nt,))
+
+        distsquare = 0
+        dist = 0
+        rsafe = 0
+        for intj in range(self.numobstacles):
+            for intex in range(self.nt):
+                # if position is too close to obstacle add a penalty of that
+                distsquare = (self.x[intex + 1] - self.obstaclepositions[intj, 0]) * (
+                        self.x[intex + 1] - self.obstaclepositions[intj, 0]) + (
+                                     self.y[intex + 1] - self.obstaclepositions[intj, 1]) * (
+                                     self.y[intex + 1] - self.obstaclepositions[intj, 1])
+                if distsquare - (self.obstacleradii[intj] + 2.0 * self.r) * (
+                        self.obstacleradii[intj] + 2.0 * self.r) < 0:
+                    dist = np.sqrt(distsquare)
+                    rsafe = (self.obstacleradii[intj] + 2.0 * self.r)
+                    dobstxpenalty[intj, intex] = -2.0*(rsafe - dist)*(self.x[intex + 1] - self.obstaclepositions[intj, 0])/dist
+                    dobstypenaltyvert[intj, intex] = -2.0*(rsafe - dist)*(self.y[intex + 1] - self.obstaclepositions[intj, 1])/dist
+
+        even_indices = np.arange(0, self.num_control_inputs - 2, 2)
+        odd_indices = np.arange(1, self.num_control_inputs - 2, 2)
+        pxdotdot_coefficient = (np.diag(self.u[odd_indices], -1) + np.diag(self.u[even_indices], -1))/self.mass
+        pxdotdot_ptheta = np.diag(-np.sin(self.theta[1:-1]), -1)*pxdotdot_coefficient
+        pydotdot_ptheta = np.diag(np.cos(self.theta[1:-1]), -1)*pxdotdot_coefficient
+        #this is basically the derivative of x wrt u
+        dx_du = (px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(dtheta_du))
+        # this is basically the derivative of y wrt u
+        dy_du = (px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(dtheta_du))
+
+        #print("derivative  obstacle x penalty shape", dobstxpenalty.shape, "dc/du shape", u.shape,"dx/du shape ",dx_du.shape)
+        dobstxpenalty_du = (dobstxpenalty).dot(dx_du)
+        dobstypenaltyvert_du = (dobstypenaltyvert).dot(dy_du)
+        #print("derivative obstacle x du penalty shape", dobstxpenalty_du.shape, "dc/du shape", u.shape)
+
+        #this is a quadratic penalty that replaces the target constraint. I haven't actually removed the target constraint though
+        dendpenaltyx = 2.0*((self.x[-1] - self.x_target))
+        dendpenaltyy =  2.0*((self.y[-1] - self.y_target))
+        dendx_du = dendpenaltyx*dx_du[-1,:]
+        dendy_du = dendpenaltyy*dy_du[-1,:]
+
+        if self.numobstacles >0:
+            return 1.0 * self.deltat * u + 10000.0*self.nt*self.deltat*dendx_du + 10000.0*self.nt*self.deltat*dendy_du + 10000.0 * self.deltat * dquadpenalty_du + 10000.0*self.deltat*(dobstxpenalty_du) + 10000.0*self.deltat*(dobstypenaltyvert_du)
+        else:
+            return 1.0 * self.deltat * u + 10000.0*self.nt*self.deltat*dendx_du + 10000.0*self.nt*self.deltat*dendy_du + 10000.0 * self.deltat * dquadpenalty_du
 
     '''
     dc_dx
@@ -251,7 +327,7 @@ class Simulation:
         dc_du[0, :] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(dtheta_du))
 
         # dc_du[1,:] = pc_px.dot(px_pxdot).dot(pxdotdot_pinput + pxdotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
-        dc_du[1,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
+        dc_du[1,:] = -pc_px.dot(px_pxdot).dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(dtheta_du))
         # dc_du[3,:] = pc_px.dot(px_pxdot).dot(pydotdot_pinput + pydotdot_ptheta.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational))
         # dc_du[4,:] = W.dot(px_pxdot).dot(px_pxdot).dot(pacceleration_pinput_rotational)
         # dc_du[5,:] = W.dot(px_pxdot).dot(pacceleration_pinput_rotational)
@@ -303,11 +379,19 @@ class Simulation:
             plt.plot(self.x_target, self.y_target, color=[1.0, 0.7, 0.0, 1.0], marker='*')
             plt.xlim([xmin,xmax])
             plt.ylim([ymin,ymax])
+            plt.rcParams["figure.figsize"] = (8, 8)
+
+            for intj in range(self.numobstacles):
+                # plot obstacles
+                circle1 = plt.Circle((self.obstaclepositions[intj, 0], self.obstaclepositions[intj, 1]),
+                                     self.obstacleradii[intj], color=[1.0, 0.0, 0.5, 1.0])
+                plt.gca().add_patch(circle1)
+
 
             plt.savefig(f'plots/video_plot_at_t_{intex:9.9f}.png', bbox_inches='tight')
             plt.close()
 
-    def plot_rigid_body_displacement(self, x_axis='x', y_axis='y', show=True):
+    def plot_rigid_body_displacement(self, x_axis='x', y_axis='y', show=True,xmin=None,xmax=None,ymin=None,ymax=None):
         t_data = np.linspace(0,self.tf,self.nt)
         #y_data = self.rigid_body_displacement[:,1]
         x_data = self.x
@@ -347,9 +431,18 @@ class Simulation:
         #plot target
         plt.plot(self.x_target, self.y_target, color = [1.0,0.7,0.0,1.0],marker ='*')
 
+        for intj in range(self.numobstacles):
+            #plot obstacles
+            circle1 = plt.Circle((self.obstaclepositions[intj,0], self.obstaclepositions[intj,1]), self.obstacleradii[intj], color=[1.0,0.0,0.5,1.0])
+            plt.gca().add_patch(circle1)
+
+
         plt.title(f'Rigid Body Dynamics: {y_axis} vs. {x_axis}')
         plt.xlabel(x_axis)
         plt.ylabel(y_axis)
+        if xmin != None:
+            plt.xlim([xmin, xmax])
+            plt.ylim([ymin, ymax])
         if show:
             plt.show()
 
@@ -500,10 +593,10 @@ if __name__ == "__main__":
     print(sim1.deltat)
     print(sim1.y)
 
-    sim1.plot_rigid_body_displacement()
-    #sim1.savefigures(-5,20,-5,20)
-    #sim1.generate_video("testplot1.avi",10)
+    sim1.plot_rigid_body_displacement(xmin=-5,xmax=20,ymin=-5,ymax=20)
     sim1.evaluate_objective(sim1.u)
     sim1.evaluate_objective_gradient(sim1.u)
     sim1.evaluate_constraint_jacobian()
+    sim1.savefigures(-5,20,-5,20)
+    sim1.generate_video("testplot1.avi",sim1.nt/sim1.tf)
     print("hello end of file")
